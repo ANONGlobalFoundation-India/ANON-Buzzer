@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ANON Quiz — Buzzer</title>
+<style>
+  :root{
+    --red:#EE3134; --red-dark:#C81E22; --red-light:#FF6F72;
+    --blue:#365BA9; --blue-dark:#24407D;
+    --gold:#FFC93C;
+    --ink:#1B2430; --ink-soft:#5B6473;
+    --bg:#F5F8FF; --card:#FFFFFF; --line:#E3E9F5;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; min-height:100%;
+    background:var(--bg); color:var(--ink);
+    font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    -webkit-tap-highlight-color:transparent;
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  body{
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100vh; min-height:100dvh;
+    background-image:
+      radial-gradient(circle at 8% 6%, rgba(238,49,52,0.07), transparent 32%),
+      radial-gradient(circle at 92% 10%, rgba(54,91,169,0.08), transparent 34%),
+      radial-gradient(circle at 90% 94%, rgba(238,49,52,0.06), transparent 30%),
+      radial-gradient(circle at 4% 90%, rgba(54,91,169,0.06), transparent 30%);
+    transition:background-color 0.4s ease;
+  }
+  body.win-flash{ background-color:#FFF6D8; }
+
+  /* ---------- shared chrome ---------- */
+  .wrap{ width:100%; max-width:480px; padding:1.6rem 1.4rem 3rem; display:flex; flex-direction:column; align-items:center; flex:1; }
+  .brand{ display:flex; align-items:center; gap:0.6rem; margin-bottom:0.3rem; }
+  .brand img{ height:34px; width:auto; display:block; }
+  .brand span{ font-weight:800; font-size:1rem; color:var(--ink-soft); letter-spacing:0.01em; }
+  h1{ font-size:1.7rem; font-weight:800; margin:0.4rem 0 1.6rem; text-align:center; color:var(--ink); }
+
+  .conn-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; background:#C4CBDA; margin-right:0.4rem; vertical-align:middle; }
+  .conn-dot.live{ background:#2FBE6C; }
+  .conn-row{ font-size:0.8rem; font-weight:600; color:var(--ink-soft); margin-bottom:1.2rem; }
+
+  /* ---------- name gate ---------- */
+  .gate{ width:100%; background:var(--card); border:2px solid var(--line); border-radius:18px; padding:1.8rem 1.5rem; box-shadow:0 12px 28px rgba(27,36,48,0.07); text-align:center; }
+  .gate p{ color:var(--ink-soft); font-size:0.95rem; font-weight:500; margin:0 0 1.2rem; line-height:1.5; }
+  input[type=text]{
+    width:100%; font-size:1.05rem; font-weight:600; padding:0.85rem 1rem; border-radius:12px;
+    border:2px solid var(--line); background:#FAFBFE; color:var(--ink); text-align:center; margin-bottom:1rem;
+  }
+  input[type=text]:focus{ outline:none; border-color:var(--blue); }
+  .btn{
+    font-size:1.05rem; font-weight:700; padding:0.9rem 1.6rem; border-radius:999px;
+    border:none; cursor:pointer; color:#fff; width:100%; transition:transform 0.12s ease, opacity 0.12s ease;
+  }
+  .btn:active{ transform:scale(0.97); }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btn.blue{ background:var(--blue); box-shadow:0 8px 18px rgba(54,91,169,0.3); }
+
+  /* ---------- main stage ---------- */
+  .stage{ width:100%; display:flex; flex-direction:column; align-items:center; flex:1; }
+  .status-line{ font-size:1.05rem; font-weight:700; text-align:center; min-height:1.5em; margin-bottom:2rem; color:var(--ink-soft); }
+  .status-line.armed{ color:var(--red-dark); }
+
+  .buzzer-zone{ position:relative; width:min(260px, 62vw); aspect-ratio:1/1; margin-bottom:1.6rem; }
+  .buzzer{
+    width:100%; height:100%; border-radius:50%; border:none; cursor:pointer;
+    background:radial-gradient(circle at 35% 30%, var(--red-light), var(--red) 55%, var(--red-dark) 100%);
+    box-shadow:0 14px 0 var(--red-dark), 0 18px 30px rgba(200,30,34,0.35);
+    color:#fff; font-size:1.5rem; font-weight:800; letter-spacing:0.02em;
+    transition:transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .buzzer:active:not(:disabled){ transform:translateY(10px); box-shadow:0 4px 0 var(--red-dark), 0 8px 16px rgba(200,30,34,0.3); }
+  .buzzer:disabled{
+    background:radial-gradient(circle at 35% 30%, #DDE2EE, #C4CBDA 55%, #A9B1C4 100%);
+    box-shadow:0 14px 0 #8D97AC, 0 18px 30px rgba(27,36,48,0.12);
+    cursor:not-allowed; color:#fff;
+  }
+  .buzzer.mine-locked{
+    background:radial-gradient(circle at 35% 30%, var(--gold), #E6AE1F 55%, #B8860B 100%);
+    box-shadow:0 14px 0 #8A6100, 0 18px 30px rgba(255,201,60,0.35);
+  }
+
+  .winner-card{
+    width:100%; border-radius:18px; padding:1.4rem 1.2rem; text-align:center;
+    background:var(--card); border:2px solid var(--gold); box-shadow:0 12px 26px rgba(27,36,48,0.08);
+    margin-bottom:1.4rem; min-height:88px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .winner-card .eyebrow{ font-size:0.85rem; font-weight:700; color:var(--ink-soft); margin-bottom:0.3rem; }
+  .winner-card .name{ font-size:1.6rem; font-weight:800; color:var(--red-dark); }
+  .winner-card.empty{ border-color:var(--line); }
+  .winner-card.empty .eyebrow{ color:var(--ink-soft); }
+
+  .next-btn{
+    background:transparent; color:var(--blue); border:2px solid var(--blue); box-shadow:none;
+    font-size:0.95rem; padding:0.75rem 1.4rem; margin-top:auto;
+  }
+  .next-btn:active:not(:disabled){ background:rgba(54,91,169,0.08); }
+
+  .footnote{ font-size:0.78rem; color:var(--ink-soft); text-align:center; margin-top:1rem; line-height:1.5; }
+
+  .hidden{ display:none !important; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="brand">
+    <img src="data:image/gif;base64,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" alt="ANON Global Foundation logo">
+    <span>ANON Global Foundation</span>
+  </div>
+  <h1>Quiz Buzzer</h1>
+  <div class="conn-row"><span class="conn-dot" id="connDot"></span><span id="connText">Connecting…</span></div>
+
+  <!-- Name entry gate -->
+  <div class="gate" id="gate">
+    <p>Enter your name to join the buzzer round. Everyone on this link is in the same live round.</p>
+    <input type="text" id="nameInput" placeholder="Your name" maxlength="24" autocomplete="off">
+    <button class="btn blue" id="joinBtn">Join Quiz</button>
+  </div>
+
+  <!-- Main buzzer stage -->
+  <div class="stage hidden" id="stage">
+    <div class="status-line" id="statusLine">Waiting for the next question…</div>
+
+    <div class="winner-card empty" id="winnerCard">
+      <div class="eyebrow">No one has buzzed yet</div>
+    </div>
+
+    <div class="buzzer-zone">
+      <button class="buzzer" id="buzzBtn" disabled>BUZZ</button>
+    </div>
+
+    <button class="btn next-btn" id="nextBtn">Next Question →</button>
+    <div class="footnote">Tap "Next Question" once everyone's ready — it opens the buzzer for all.</div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+<script>
+(function(){
+
+  /* =========================================================
+     1) PASTE YOUR FIREBASE CONFIG HERE
+     Get this from: Firebase console → Project settings →
+     "Your apps" → SDK setup and configuration.
+  ========================================================= */
+  var firebaseConfig = {
+    apiKey: "AIzaSyCmupI864D1B5LlEwMd7ElSzIoniVWVEr0",
+    authDomain: "anon-quiz-ff877.firebaseapp.com",
+    databaseURL: "https://anon-quiz-ff877-default-rtdb.firebaseio.com",
+    projectId: "anon-quiz-ff877",
+    storageBucket: "anon-quiz-ff877.firebasestorage.app",
+    messagingSenderId: "570274685413",
+    appId: "1:570274685413:web:c586d8614e5b14ef964f0c"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  var db = firebase.database();
+  var quizRef = db.ref('quiz');
+
+  var myName = null;
+  var myId = 'p_' + Math.random().toString(36).slice(2, 10);
+  var haveBuzzedThisRound = false;
+
+  var gate = document.getElementById('gate');
+  var stage = document.getElementById('stage');
+  var nameInput = document.getElementById('nameInput');
+  var joinBtn = document.getElementById('joinBtn');
+  var buzzBtn = document.getElementById('buzzBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var statusLine = document.getElementById('statusLine');
+  var winnerCard = document.getElementById('winnerCard');
+  var connDot = document.getElementById('connDot');
+  var connText = document.getElementById('connText');
+
+  /* ---------- connection indicator ---------- */
+  db.ref('.info/connected').on('value', function(snap){
+    if(snap.val() === true){
+      connDot.classList.add('live');
+      connText.textContent = 'Live';
+    } else {
+      connDot.classList.remove('live');
+      connText.textContent = 'Connecting…';
+    }
+  });
+
+  /* ---------- name gate ---------- */
+  var savedName = localStorage.getItem('anonQuizName');
+  if(savedName){ nameInput.value = savedName; }
+
+  function join(){
+    var v = nameInput.value.trim();
+    if(!v) { nameInput.focus(); return; }
+    myName = v;
+    localStorage.setItem('anonQuizName', v);
+    gate.classList.add('hidden');
+    stage.classList.remove('hidden');
+  }
+  joinBtn.addEventListener('click', join);
+  nameInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') join(); });
+
+  /* ---------- simple buzz sound ---------- */
+  function playTone(freq, dur){
+    try{
+      var ctx = playTone._ctx || (playTone._ctx = new (window.AudioContext || window.webkitAudioContext)());
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.frequency.value = freq;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + dur);
+    }catch(e){}
+  }
+
+  /* ---------- render state from Firebase ---------- */
+  function render(state){
+    state = state || {};
+    var status = state.status || 'idle';
+    var winner = state.winner || null;
+
+    if(status === 'open' && !winner){
+      statusLine.textContent = '🟢 Buzzer is live — go!';
+      statusLine.classList.add('armed');
+      buzzBtn.disabled = haveBuzzedThisRound;
+      buzzBtn.classList.remove('mine-locked');
+      buzzBtn.textContent = 'BUZZ';
+      winnerCard.className = 'winner-card empty';
+      winnerCard.innerHTML = '<div class="eyebrow">No one has buzzed yet</div>';
+    } else if(winner){
+      statusLine.textContent = 'Buzzer locked for this question';
+      statusLine.classList.remove('armed');
+      buzzBtn.disabled = true;
+      winnerCard.className = 'winner-card';
+      winnerCard.innerHTML = '<div class="eyebrow">🔔 First to buzz</div><div class="name"></div>';
+      winnerCard.querySelector('.name').textContent = winner.name;
+      if(winner.id === myId){
+        buzzBtn.classList.add('mine-locked');
+        buzzBtn.textContent = 'YOU BUZZED FIRST!';
+      } else {
+        buzzBtn.classList.remove('mine-locked');
+        buzzBtn.textContent = 'TOO LATE';
+      }
+    } else {
+      statusLine.textContent = 'Waiting for the next question…';
+      statusLine.classList.remove('armed');
+      buzzBtn.disabled = true;
+      buzzBtn.classList.remove('mine-locked');
+      buzzBtn.textContent = 'BUZZ';
+      winnerCard.className = 'winner-card empty';
+      winnerCard.innerHTML = '<div class="eyebrow">No one has buzzed yet</div>';
+    }
+  }
+
+  quizRef.on('value', function(snap){
+    var state = snap.val();
+    if(state && state.status !== 'open'){
+      // round is locked or idle — reset local "already buzzed" flag once a fresh round opens
+    }
+    if(!state || state.status === 'idle' || (state.status === 'open' && !state.winner)){
+      haveBuzzedThisRound = false;
+    }
+    render(state);
+  });
+
+  /* ---------- buzz press ---------- */
+  buzzBtn.addEventListener('click', function(){
+    if(haveBuzzedThisRound) return;
+    haveBuzzedThisRound = true;
+    navigator.vibrate && navigator.vibrate(40);
+
+    quizRef.transaction(function(current){
+      if(!current || current.status !== 'open' || current.winner) return; // abort, someone beat you or round not open
+      current.status = 'locked';
+      current.winner = { name: myName, id: myId, ts: Date.now() };
+      return current;
+    }, function(err, committed, snap){
+      var val = snap ? snap.val() : null;
+      if(committed && val && val.winner && val.winner.id === myId){
+        playTone(880, 0.18);
+      } else {
+        playTone(220, 0.12);
+      }
+    });
+  });
+
+  /* ---------- next question / open buzzer ---------- */
+  nextBtn.addEventListener('click', function(){
+    quizRef.set({ status: 'open', winner: null });
+    haveBuzzedThisRound = false;
+  });
+
+})();
+</script>
+
+</body>
+</html>
